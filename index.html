@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>학생 상담 기록 정리기</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --green-50: #ecfdf5;
+      --green-100: #d1fae5;
+      --green-400: #34d399;
+      --green-500: #10b981;
+      --green-600: #059669;
+      --green-700: #047857;
+      --mint-bg: #f0faf6;
+      --text-dark: #134e4a;
+      --text-body: #334155;
+      --text-muted: #64748b;
+      --shadow-soft: 0 4px 24px rgba(16, 185, 129, 0.1);
+      --shadow-form: 0 8px 32px rgba(16, 185, 129, 0.16);
+      --radius-card: 18px;
+      --radius-input: 12px;
+      --transition: 0.25s ease;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      min-height: 100vh;
+      font-family: "Noto Sans KR", -apple-system, BlinkMacSystemFont, sans-serif;
+      background: linear-gradient(165deg, var(--mint-bg) 0%, #e8f5ef 50%, #f0fdf4 100%);
+      color: var(--text-body);
+      line-height: 1.6;
+      letter-spacing: -0.02em;
+    }
+
+    .page {
+      max-width: 100%;
+      margin: 0 auto;
+      padding: 1.25rem 1rem 2.5rem;
+      padding-bottom: calc(2.5rem + env(safe-area-inset-bottom));
+    }
+
+    /* 제목 — 차분하게, 입력 폼보다 작게 */
+    .page-header {
+      margin-bottom: 1.25rem;
+      animation: fadeDown 0.4s ease;
+    }
+
+    .page-header h1 {
+      font-size: 1.15rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      letter-spacing: -0.03em;
+    }
+
+    .page-header p {
+      display: none;
+    }
+
+    /* 카드 공통 — 둥글고 부드러운 그림자 */
+    .card {
+      background: #fff;
+      border-radius: var(--radius-card);
+      padding: 1rem;
+      margin-bottom: 0.875rem;
+      box-shadow: var(--shadow-soft);
+      transition: box-shadow var(--transition), transform var(--transition);
+    }
+
+    .card-title {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--text-body);
+      margin-bottom: 0.75rem;
+    }
+
+    /* 입력 폼 — 화면에서 가장 눈에 띄게 */
+    .form-card {
+      padding: 1.35rem 1.25rem 1.25rem;
+      box-shadow: var(--shadow-form);
+      border: 1px solid var(--green-100);
+      border-top: 4px solid var(--green-500);
+      animation: fadeUp 0.45s ease;
+    }
+
+    .form-card .card-title {
+      font-size: 1.125rem;
+      font-weight: 700;
+      color: var(--text-dark);
+      margin-bottom: 1rem;
+      letter-spacing: -0.03em;
+    }
+
+    .form-field {
+      margin-bottom: 1rem;
+    }
+
+    .form-field:last-of-type {
+      margin-bottom: 0;
+    }
+
+    label {
+      display: block;
+      font-size: 0.8125rem;
+      font-weight: 600;
+      color: var(--green-700);
+      margin-bottom: 0.45rem;
+      letter-spacing: -0.01em;
+    }
+
+    select,
+    textarea {
+      width: 100%;
+      font-family: inherit;
+      font-size: 16px;
+      border: 1.5px solid var(--green-100);
+      border-radius: var(--radius-input);
+      padding: 0.8rem 0.875rem;
+      background: var(--green-50);
+      color: var(--text-body);
+      transition: border-color var(--transition), background var(--transition), box-shadow var(--transition);
+    }
+
+    select {
+      min-height: 48px;
+      cursor: pointer;
+    }
+
+    select:focus,
+    textarea:focus {
+      outline: none;
+      border-color: var(--green-400);
+      background: #fff;
+      box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.15);
+    }
+
+    textarea {
+      min-height: 130px;
+      line-height: 1.55;
+      resize: vertical;
+    }
+
+    textarea::placeholder {
+      color: #94a3b8;
+    }
+
+    .btn-save {
+      width: 100%;
+      margin-top: 1.1rem;
+      padding: 0.9rem 1rem;
+      min-height: 52px;
+      font-size: 16px;
+      font-weight: 700;
+      font-family: inherit;
+      letter-spacing: -0.02em;
+      color: #fff;
+      background: linear-gradient(135deg, var(--green-500) 0%, var(--green-600) 100%);
+      border: none;
+      border-radius: var(--radius-input);
+      cursor: pointer;
+      box-shadow: 0 4px 14px rgba(16, 185, 129, 0.35);
+      transition: transform var(--transition), box-shadow var(--transition), background var(--transition);
+    }
+
+    .btn-save:hover {
+      box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
+      transform: translateY(-1px);
+    }
+
+    .btn-save:active {
+      transform: translateY(0) scale(0.98);
+      box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+    }
+
+    .btn-save.saving {
+      pointer-events: none;
+      opacity: 0.85;
+    }
+
+    /* 기록 목록 — 보조 영역, 차분하게 */
+    .list-card {
+      background: rgba(255, 255, 255, 0.75);
+      box-shadow: 0 2px 12px rgba(16, 185, 129, 0.06);
+      animation: fadeUp 0.5s ease 0.1s both;
+    }
+
+    .list-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 0.75rem;
+    }
+
+    .list-header .card-title {
+      font-size: 0.8125rem;
+      font-weight: 500;
+      color: var(--text-muted);
+      margin-bottom: 0;
+    }
+
+    .record-count {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--green-700);
+      background: var(--green-50);
+      padding: 0.25rem 0.65rem;
+      border-radius: 999px;
+      transition: transform var(--transition);
+    }
+
+    .record-count.bump {
+      animation: countBump 0.35s ease;
+    }
+
+    .record-list {
+      list-style: none;
+    }
+
+    .record-list.fading {
+      opacity: 0;
+      transform: translateY(6px);
+      transition: opacity 0.2s ease, transform 0.2s ease;
+    }
+
+    .record-item {
+      background: #fff;
+      border: 1px solid var(--green-100);
+      border-radius: 14px;
+      padding: 0.9rem;
+      margin-bottom: 0.625rem;
+      box-shadow: 0 2px 8px rgba(16, 185, 129, 0.06);
+      animation: fadeUp 0.35s ease both;
+    }
+
+    .record-item:nth-child(2) { animation-delay: 0.06s; }
+    .record-item:nth-child(3) { animation-delay: 0.12s; }
+    .record-item:nth-child(4) { animation-delay: 0.18s; }
+
+    .record-item:last-child {
+      margin-bottom: 0;
+    }
+
+    .record-item.removing {
+      opacity: 0;
+      transform: translateX(12px);
+      transition: opacity 0.25s ease, transform 0.25s ease;
+    }
+
+    .record-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 0.5rem;
+    }
+
+    .record-meta {
+      font-size: 0.8125rem;
+      font-weight: 600;
+      color: var(--green-700);
+    }
+
+    .btn-delete {
+      flex-shrink: 0;
+      font-family: inherit;
+      font-size: 0.75rem;
+      font-weight: 500;
+      color: #94a3b8;
+      background: none;
+      border: none;
+      padding: 0.15rem 0.4rem;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: color var(--transition), background var(--transition);
+    }
+
+    .btn-delete:hover {
+      color: #ef4444;
+      background: #fef2f2;
+    }
+
+    /* 목록 필터 */
+    .filter-field {
+      margin-bottom: 0.875rem;
+    }
+
+    .filter-field label {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-bottom: 0.35rem;
+    }
+
+    .filter-field select {
+      min-height: 40px;
+      font-size: 14px;
+      padding: 0.5rem 0.75rem;
+    }
+
+    .record-text {
+      font-size: 0.9375rem;
+      color: var(--text-body);
+      white-space: pre-wrap;
+      margin-top: 0.4rem;
+      line-height: 1.55;
+    }
+
+    .empty-message {
+      text-align: center;
+      padding: 2rem 1rem;
+      color: #94a3b8;
+      font-size: 0.9rem;
+      animation: fadeUp 0.35s ease;
+    }
+
+    @keyframes fadeUp {
+      from {
+        opacity: 0;
+        transform: translateY(12px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes fadeDown {
+      from {
+        opacity: 0;
+        transform: translateY(-8px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes countBump {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.12); }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header class="page-header">
+      <h1>학생 상담 기록 정리기</h1>
+      <p>아래에서 기록하고, 목록에서 확인합니다.</p>
+    </header>
+
+    <!-- 입력 폼 (강조) -->
+    <section class="card form-card">
+      <h2 class="card-title">새 상담 기록</h2>
+
+      <div class="form-field">
+        <label for="student-select">학생</label>
+        <select id="student-select" name="student">
+          <option value="">-- 학생을 선택하세요 --</option>
+          <option value="s1">김○○</option>
+          <option value="s2">이○○</option>
+          <option value="s3">박○○</option>
+          <option value="s4">최○○</option>
+          <option value="s5">정○○</option>
+        </select>
+      </div>
+
+      <div class="form-field">
+        <label for="counsel-text">상담 내용</label>
+        <textarea
+          id="counsel-text"
+          placeholder="예: 진로 고민, 학습 태도, 가정 연락 필요 여부 등"
+        ></textarea>
+      </div>
+
+      <button type="button" class="btn-save" id="btn-save">기록 저장</button>
+    </section>
+
+    <!-- 기록 목록 -->
+    <section class="card list-card">
+      <div class="list-header">
+        <h2 class="card-title">상담 기록 목록</h2>
+        <span class="record-count" id="record-count">0건</span>
+      </div>
+
+      <div class="filter-field">
+        <label for="filter-select">학생별 보기</label>
+        <select id="filter-select">
+          <option value="">전체 학생</option>
+          <option value="s1">김○○</option>
+          <option value="s2">이○○</option>
+          <option value="s3">박○○</option>
+          <option value="s4">최○○</option>
+          <option value="s5">정○○</option>
+        </select>
+      </div>
+
+      <ul class="record-list" id="record-list"></ul>
+    </section>
+  </div>
+
+  <script>
+    const STORAGE_KEY = "counsel-records";
+
+    const students = {
+      s1: "김○○",
+      s2: "이○○",
+      s3: "박○○",
+      s4: "최○○",
+      s5: "정○○"
+    };
+
+    const sampleRecords = [
+      {
+        id: 1,
+        studentId: "s1",
+        date: "2026-07-03",
+        text: "진로 상담. 대학 진학과 취업 사이에서 고민 중이라고 함. 본인은 디자인 쪽에 관심이 있으나, 부모님은 안정적인 진로를 원하신다고 전함. 다음 주에 진로 검사 결과를 함께 보며 이야기하기로 함."
+      },
+      {
+        id: 2,
+        studentId: "s2",
+        date: "2026-07-05",
+        text: "수업 중 휴대폰 사용이 잦아 지도함. 스스로도 집중이 어렵다고 인정함. 수업 시간에는 휴대폰을 교실 앞에 두기로 약속했고, 2주 뒤 다시 확인하기로 함."
+      }
+    ];
+
+    const btnSave = document.getElementById("btn-save");
+    const studentSelect = document.getElementById("student-select");
+    const counselText = document.getElementById("counsel-text");
+    const filterSelect = document.getElementById("filter-select");
+    const recordList = document.getElementById("record-list");
+    const recordCount = document.getElementById("record-count");
+
+    let records = [];
+
+    function loadRecords() {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        records = JSON.parse(saved);
+      } else {
+        records = sampleRecords.slice();
+        saveRecords();
+      }
+    }
+
+    function saveRecords() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+    }
+
+    function getToday() {
+      const now = new Date();
+      const y = now.getFullYear();
+      const m = String(now.getMonth() + 1).padStart(2, "0");
+      const d = String(now.getDate()).padStart(2, "0");
+      return y + "-" + m + "-" + d;
+    }
+
+    function nextId() {
+      if (records.length === 0) return 1;
+      return Math.max.apply(null, records.map(function (r) { return r.id; })) + 1;
+    }
+
+    function formatDate(dateStr) {
+      const parts = dateStr.split("-");
+      return parts[0] + "년 " + Number(parts[1]) + "월 " + Number(parts[2]) + "일";
+    }
+
+    function getFilteredRecords() {
+      const filterId = filterSelect.value;
+      const sorted = records.slice().sort(function (a, b) {
+        if (a.date !== b.date) return b.date.localeCompare(a.date);
+        return b.id - a.id;
+      });
+      if (!filterId) return sorted;
+      return sorted.filter(function (r) { return r.studentId === filterId; });
+    }
+
+    function escapeHTML(str) {
+      return str
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    function buildRecordHTML(filtered) {
+      if (filtered.length === 0) {
+        const msg = filterSelect.value
+          ? "이 학생의 상담 기록이 없습니다."
+          : "아직 저장된 상담 기록이 없습니다.";
+        return '<li class="empty-message">' + msg + '</li>';
+      }
+
+      return filtered.map(function (record) {
+        return (
+          '<li class="record-item" data-id="' + record.id + '">' +
+            '<div class="record-top">' +
+              '<div class="record-meta">' +
+                students[record.studentId] + " · " + formatDate(record.date) +
+              '</div>' +
+              '<button type="button" class="btn-delete" data-id="' + record.id + '">삭제</button>' +
+            '</div>' +
+            '<div class="record-text">' + escapeHTML(record.text) + '</div>' +
+          '</li>'
+        );
+      }).join("");
+    }
+
+    function renderRecords(animate) {
+      const filtered = getFilteredRecords();
+      recordCount.textContent = filtered.length + "건";
+
+      if (animate) {
+        recordCount.classList.remove("bump");
+        void recordCount.offsetWidth;
+        recordCount.classList.add("bump");
+
+        recordList.classList.add("fading");
+        setTimeout(function () {
+          recordList.innerHTML = buildRecordHTML(filtered);
+          recordList.classList.remove("fading");
+        }, 200);
+      } else {
+        recordList.innerHTML = buildRecordHTML(filtered);
+      }
+    }
+
+    function deleteRecord(id) {
+      const target = records.find(function (r) { return r.id === id; });
+      if (!target) return;
+
+      const name = students[target.studentId];
+      const ok = confirm(name + " 학생의 이 상담 기록을 삭제할까요?\n삭제하면 되돌릴 수 없습니다.");
+      if (!ok) return;
+
+      const item = recordList.querySelector('[data-id="' + id + '"]');
+      if (item) {
+        item.classList.add("removing");
+        setTimeout(function () {
+          records = records.filter(function (r) { return r.id !== id; });
+          saveRecords();
+          renderRecords(true);
+        }, 250);
+      } else {
+        records = records.filter(function (r) { return r.id !== id; });
+        saveRecords();
+        renderRecords(true);
+      }
+    }
+
+    filterSelect.addEventListener("change", function () {
+      renderRecords(true);
+    });
+
+    recordList.addEventListener("click", function (e) {
+      const btn = e.target.closest(".btn-delete");
+      if (!btn) return;
+      deleteRecord(Number(btn.dataset.id));
+    });
+
+    btnSave.addEventListener("click", function () {
+      if (!studentSelect.value) {
+        alert("먼저 학생을 선택해 주세요.");
+        return;
+      }
+      if (!counselText.value.trim()) {
+        alert("상담 내용을 입력해 주세요.");
+        return;
+      }
+
+      btnSave.classList.add("saving");
+      btnSave.textContent = "저장 중…";
+
+      setTimeout(function () {
+        const newRecord = {
+          id: nextId(),
+          studentId: studentSelect.value,
+          date: getToday(),
+          text: counselText.value.trim()
+        };
+
+        records.push(newRecord);
+        saveRecords();
+        counselText.value = "";
+
+        filterSelect.value = newRecord.studentId;
+
+        btnSave.classList.remove("saving");
+        btnSave.textContent = "기록 저장";
+        renderRecords(true);
+      }, 300);
+    });
+
+    loadRecords();
+    renderRecords(false);
+  </script>
+</body>
+</html>

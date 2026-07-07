@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🌍 고정밀 대지형 & 판의 경계 시뮬레이터 (라이트 모드)</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        #map { height: 500px; width: 100%; z-index: 1; }
+        /* 라이트 모드에 맞춰 마커 테두리와 그림자 조정 */
+        .custom-pin {
+            background-color: #059669;
+            border: 2px solid white;
+            border-radius: 50%;
+            box-shadow: 0 0 8px rgba(5, 150, 105, 0.6);
+        }
+        .custom-pin-quiz {
+            background-color: #d97706;
+            border: 2px solid white;
+            border-radius: 50%;
+            box-shadow: 0 0 8px rgba(217, 119, 6, 0.6);
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen font-sans">
+
+    <header class="bg-white border-b border-slate-200 p-5 shadow-sm">
+        <div class="max-w-7xl mx-auto flex justify-between items-center">
+            <div>
+                <h1 class="text-2xl font-bold text-emerald-600 flex items-center gap-2">
+                    🌍 대지형 & 판의 경계 인터랙티브 시뮬레이터
+                </h1>
+                <p class="text-sm text-slate-500 mt-1">지리적 실제 위·경도 데이터와 정밀 판의 경계선을 활용한 대시보드 프로그램입니다.</p>
+            </div>
+            <button id="quiz-btn" onclick="toggleQuizMode()" class="bg-amber-500 hover:bg-amber-600 text-white font-bold px-5 py-2.5 rounded-lg transition shadow-md">
+                🎯 퀴즈 모드 켜기
+            </button>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
+        
+        <section class="lg:col-span-7 bg-white border border-slate-200 rounded-xl p-4 relative shadow-sm flex flex-col justify-between">
+            <div class="mb-2 flex justify-between items-center">
+                <span class="text-xs font-semibold bg-slate-100 px-2 py-1 rounded text-slate-600">물리 세계 지도 & 구조선 데이터 동기화</span>
+                <span id="quiz-instruction" class="text-sm text-amber-600 font-bold hidden animate-bounce">💡 문제를 읽고 알맞은 지도 위 마커를 클릭하세요!</span>
+            </div>
+            
+            <div id="map" class="rounded-lg border border-slate-300 overflow-hidden"></div>
+            
+            <p class="text-xs text-slate-500 mt-2 text-center">※ <span class="text-red-500 font-bold">■ 붉은 선</span>은 실제 지구물리학 데이터 기반의 판의 경계선(Tectonic Plate Boundaries)입니다. 지도를 드래그하거나 확대할 수 있습니다.</p>
+        </section>
+
+        <section class="lg:col-span-5 flex flex-col gap-4">
+            
+            <div id="quiz-card" class="bg-white border-2 border-amber-500 rounded-xl p-5 shadow-sm hidden">
+                <div class="flex justify-between items-center mb-2">
+                    <span class="text-xs font-bold text-amber-600 uppercase tracking-wider">GEOGRAPHY QUIZ</span>
+                    <span id="quiz-score" class="text-sm font-semibold text-slate-600">점수: 0점</span>
+                </div>
+                <p id="quiz-question" class="text-base font-medium text-slate-800 mb-3">질문이 여기에 표시됩니다.</p>
+                <div id="quiz-feedback" class="text-sm font-bold mt-2 hidden"></div>
+            </div>
+
+            <div class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm flex-1 flex flex-col justify-between min-h-[440px]">
+                <div id="empty-state" class="flex-1 flex flex-col items-center justify-center text-center text-slate-400">
+                    <span class="text-5xl mb-3">🔍</span>
+                    <p class="text-base font-medium text-slate-600">지도 위의 초록색 마커를 클릭하면<br>해당 지형의 정밀 구조 정보가 활성화됩니다.</p>
+                </div>
+
+                <div id="info-state" class="hidden flex-1 flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between border-b border-slate-200 pb-3 mb-4">
+                            <div>
+                                <h2 id="info-name" class="text-xl font-bold text-slate-800">지형 이름</h2>
+                                <p id="info-plates" class="text-xs text-slate-500 mt-0.5">상호작용 판 정보</p>
+                            </div>
+                            <span id="info-type" class="text-xs font-bold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-200">경계 유형</span>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-3 mb-4">
+                            <div class="bg-slate-50 border border-slate-200 p-3 rounded-lg text-center">
+                                <span class="text-xs text-slate-500 block mb-1">판의 이동 방향</span>
+                                <span id="info-direction" class="text-2xl font-bold text-amber-600">➔ 🡨</span>
+                            </div>
+                            <div class="bg-slate-50 border border-slate-200 p-3 rounded-lg text-center">
+                                <span class="text-xs text-slate-500 block mb-1">발생 자연재해</span>
+                                <span id="info-disaster" class="text-sm font-semibold text-red-500 block mt-1">지진 / 화산</span>
+                            </div>
+                        </div>
+
+                        <div class="bg-slate-900 border border-slate-800 rounded-lg p-4 mb-4 text-slate-100">
+                            <span class="text-xs text-slate-400 block mb-2">지구조 단면 모식도</span>
+                            <div id="simulation-box" class="h-24 w-full relative overflow-hidden flex items-end justify-center"></div>
+                        </div>
+                    </div>
+
+                    <div class="bg-emerald-50/50 border border-emerald-100 p-3 rounded-lg">
+                        <span class="text-xs font-bold text-emerald-700 block mb-1">지리쌤의 핵심 요약</span>
+                        <p id="info-desc" class="text-sm text-slate-600 leading-relaxed">지형 설명</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        const geoData = [
+            {
+                name: "히말라야 산맥", lat: 27.9881, lng: 86.9250,
+                type: "수렴형 경계 (충돌대)", plates: "인도-호주판 대 유라시아판",
+                direction: "🡪 🡨 (대륙판 충돌)", disaster: "💥 대규모 역단층 지진 (천발~중발) / ❌ 화산 없음",
+                desc: "대륙판끼리 충돌하며 솟구친 세계 최고 높이의 습곡산맥입니다. 밀도가 서로 비슷해 밑으로 꺼지지 않고 위로 우뚝 솟아 거대한 두께를 가집니다. 마그마 분출 통로가 차단되어 화산은 없으나 강한 지진이 다발합니다.",
+                simHtml: `<div class="absolute bottom-0 left-0 w-1/2 h-8 bg-amber-700 border-t-4 border-emerald-500 rounded-tr-xl flex items-center justify-center font-bold text-xs text-white">대륙판 🡪</div><div class="absolute bottom-0 right-0 w-1/2 h-8 bg-amber-800 border-t-4 border-emerald-600 rounded-tl-xl flex items-center justify-center font-bold text-xs text-white">🡨 대륙판</div><div class="absolute bottom-6 left-1/2 -translate-x-1/2 w-16 h-12 bg-amber-600 border-t-4 border-emerald-400 rounded-t-full flex items-center justify-center text-xs font-bold text-white shadow-lg text-center leading-3 animate-bounce">습곡<br>산맥</div>`
+            },
+            {
+                name: "산안드레아스 단층", lat: 35.1114, lng: -119.6508,
+                type: "보존형 경계", plates: "태평양판 대 북아메리카판",
+                direction: "🡩 🡫 (수평 미끄러짐)", disaster: "⚡ 수평단층형 천발 지진 다발 / ❌ 화산 없음",
+                desc: "새로운 지각이 생기지도 소멸하지도 않고 두 판이 수평으로 스쳐 지나가는 변환단층의 대표적인 사례입니다. 단층면에 응력(스트레스)이 가해지다 일시에 튕겨 나가며 대형 지진(천발)을 일으키는 캘리포니아의 위험 구역입니다.",
+                simHtml: `<div class="absolute bottom-2 left-4 w-1/3 h-12 bg-slate-700 border-b-4 border-indigo-500 flex items-center justify-center font-bold text-xs text-white animate-pulse">태평양판 🡩</div><div class="absolute bottom-6 right-4 w-1/3 h-12 bg-slate-600 border-t-4 border-indigo-400 flex items-center justify-center font-bold text-xs text-white animate-pulse">🡫 북미판</div><div class="absolute bottom-4 left-1/2 -translate-x-1/2 w-0.5 h-16 bg-red-500 border-dashed border"></div>`
+            },
+            {
+                name: "동아프리카 지구대", lat: -1.2921, lng: 36.8219,
+                type: "발산형 경계 (대륙 내부)", plates: "누비아판 대 소말리아판 (내부 분열)",
+                direction: "🡨 🡪 (대륙의 장력 분열)", disaster: "🌋 활발한 열점·현무암질 화산 / ⚡ 천발 지진",
+                desc: "대륙판의 아래쪽에서 강력한 멘틀 대류가 솟구쳐 오르면서 대륙 자체가 양쪽으로 갈라져 무너져 내리는 골짜기(열곡대)입니다. 이 틈새를 따라 킬리만자로 등 활발한 화산이 폭발하고 있으며 수백만 년 뒤엔 바다가 됩니다.",
+                simHtml: `<div class="absolute bottom-0 left-0 w-[42%] h-12 bg-amber-800 border-t-4 border-rose-500 font-bold text-xs text-white flex items-center justify-end pr-2">🡨 대륙</div><div class="absolute bottom-0 right-0 w-[42%] h-12 bg-amber-800 border-t-4 border-rose-500 font-bold text-xs text-white flex items-center justify-start pl-2">대륙 🡪</div><div class="absolute bottom-0 left-1/2 -translate-x-1/2 w-[16%] h-6 bg-red-600 animate-pulse text-[10px] text-center font-bold text-white flex items-center justify-center">마그마</div>`
+            },
+            {
+                name: "일본 해구", lat: 38.3000, lng: 142.5000,
+                type: "수렴형 경계 (섭입대)", plates: "태평양판(해양) 대 유라시아판(대륙)",
+                direction: "🡪 섭입 (밀도 큰 해양판 하강)", disaster: "🌋 안산암질 격렬한 화산 (호상열도) / 🌊 거대 쓰나미 및 대지진",
+                desc: "밀도가 매우 무겁고 차가운 해양 태평양판이 아시아 대륙판 밑으로 비스듬히 파고들어 지구 깊숙이 소멸하는 깊은 해저 골짜기(해구)입니다. 판이 긁히며 들어가기 때문에 얕은 지진부터 수백 km 깊이의 심발 지진까지 발생합니다.",
+                simHtml: `<div class="absolute bottom-4 left-0 w-1/2 h-10 bg-amber-800 border-t-4 border-cyan-500 font-bold text-xs text-white p-1">대륙판(일본)</div><div class="absolute bottom-0 right-0 w-3/5 h-8 bg-slate-700 border-t-4 border-blue-400 font-bold text-xs text-white p-1 origin-top-left -rotate-12">🡩 해양판 섭입</div><div class="absolute bottom-12 left-1/4 w-4 h-4 bg-red-500 rounded-full animate-ping"></div>`
+            },
+            {
+                name: "대서양 중앙 해령", lat: 25.0000, lng: -45.0000,
+                type: "발산형 경계 (해저)", plates: "북아메리카판 대 유라시아판",
+                direction: "🡨 🡪 (해저 확장)", disaster: "🌋 열하 분출 해저 화산 / ⚡ 천발 지진",
+                desc: "거대한 두 해양판이 매년 수 센티미터씩 멀어지며, 그 빈 공간을 상부 맨틀의 융기 마그마가 채워 새로운 해양 지각을 탄생시키는 거대한 해저 산맥입니다. 대양의 정중앙 구조를 그대로 보여줍니다.",
+                simHtml: `<div class="absolute bottom-0 left-0 w-[45%] h-8 bg-slate-700 border-t-4 border-orange-500 font-bold text-xs text-white p-1">🡨 해양판</div><div class="absolute bottom-0 right-0 w-[45%] h-8 bg-slate-700 border-t-4 border-orange-500 font-bold text-xs text-white p-1 text-right">해양판 🡪</div><div class="absolute bottom-0 left-1/2 -translate-x-1/2 w-4 h-14 bg-red-500 font-bold text-xs text-center rounded-t border-t-2 border-yellow-300">해령</div>`
+            }
+        ];
+
+        const quizzes = [
+            { question: "질문: 두 대륙판의 상호 충돌로 화산은 발생하지 않으나, 대지진의 위험이 높고 에베레스트를 포함한 초거대 산맥 지형은?", answerIndex: 0 },
+            { question: "질문: 판의 생성·소멸 없이 수평 변환단층을 형성하며 강한 천발지진이 주기적으로 정체되는 보존형 경계는?", answerIndex: 1 },
+            { question: "질문: 대륙 지각 내부가 깊게 갈라져 열곡을 형성하고 장차 새로운 바다로 확장되는 발산형 경계는?", answerIndex: 2 },
+            { question: "질문: 해양판이 밀도 차로 인해 대륙판 아래로 파고들어 깊은 해구와 나란한 호상열도를 형성하는 섭입 지형은?", answerIndex: 3 },
+            { question: "질문: 대양 바닥에서 맨틀 대류의 상승으로 두 해양판이 좌우로 확장하며 새로운 지각을 만들어내는 해저 산맥은?", answerIndex: 4 }
+        ];
+
+        let map, markers = [];
+        let isQuizMode = false, currentQuiz = null, score = 0;
+
+        function initMap() {
+            map = L.map('map').setView([20, 10], 1);
+
+            // 💡 지도를 밝은 톤(CartoDB Positron 레이어)으로 교체했습니다.
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+                attribution: '&copy; OpenStreetMap &copy; CARTO'
+            }).addTo(map);
+
+            // 판의 경계선 GeoJSON 데이터 연동 (붉은색 유지)
+            fetch('https://raw.githubusercontent.com/fraxen/tectonicplates/master/GeoJSON/PB2002_boundaries.json')
+                .then(res => res.json())
+                .then(geoJsonData => {
+                    L.geoJSON(geoJsonData, {
+                        style: { color: '#dc2626', weight: 2, opacity: 0.8 }
+                    }).addTo(map);
+                }).catch(err => console.log("경계선 데이터를 불러오는데 실패했습니다.", err));
+
+            drawMarkers();
+        }
+
+        function drawMarkers() {
+            markers.forEach(m => map.removeLayer(m));
+            markers = [];
+
+            geoData.forEach((spot, idx) => {
+                const markerIcon = L.divIcon({
+                    className: isQuizMode ? 'custom-pin-quiz' : 'custom-pin',
+                    iconSize: [16, 16]
+                });
+
+                const marker = L.marker([spot.lat, spot.lng], { icon: markerIcon }).addTo(map);
+                const tooltipText = isQuizMode ? `퀴즈 마커` : spot.name;
+                
+                // 라이트 모드에 맞춰 툴팁 가독성 개선 (그림자 추가)
+                marker.bindTooltip(tooltipText, { 
+                    permanent: true, 
+                    direction: 'top', 
+                    className: 'bg-white text-slate-800 font-semibold text-xs px-1.5 py-0.5 rounded border border-slate-300 shadow-sm' 
+                });
+                
+                marker.on('click', () => selectSpot(idx));
+                markers.push(marker);
+            });
+        }
+
+        function selectSpot(index) {
+            const data = geoData[index];
+            
+            if (isQuizMode) {
+                const feedback = document.getElementById("quiz-feedback");
+                feedback.classList.remove("hidden");
+                
+                if (index === currentQuiz.answerIndex) {
+                    feedback.innerText = "⭕ 정답입니다! 지리학적 위치를 정확히 판별했습니다.";
+                    feedback.className = "text-sm font-bold mt-2 text-emerald-600";
+                    score += 20;
+                    document.getElementById("quiz-score").innerText = `점수: ${score}점`;
+                    setTimeout(nextQuiz, 1500);
+                } else {
+                    feedback.innerText = `❌ 오답입니다. 이곳은 [${data.name}] 위치입니다. 다시 맞춰보세요.`;
+                    feedback.className = "text-sm font-bold mt-2 text-rose-600";
+                }
+                return;
+            }
+
+            document.getElementById("empty-state").classList.add("hidden");
+            document.getElementById("info-state").classList.remove("hidden");
+
+            document.getElementById("info-name").innerText = data.name;
+            document.getElementById("info-type").innerText = data.type;
+            document.getElementById("info-plates").innerText = data.plates;
+            document.getElementById("info-direction").innerText = data.direction;
+            document.getElementById("info-disaster").innerText = data.disaster;
+            document.getElementById("info-desc").innerText = data.desc;
+            document.getElementById("simulation-box").innerHTML = data.simHtml;
+
+            map.panTo([data.lat, data.lng]);
+        }
+
+        function toggleQuizMode() {
+            isQuizMode = !isQuizMode;
+            const quizCard = document.getElementById("quiz-card");
+            const quizBtn = document.getElementById("quiz-btn");
+            const instruction = document.getElementById("quiz-instruction");
+
+            if (isQuizMode) {
+                quizCard.classList.remove("hidden");
+                quizBtn.innerText = "🛑 학습 모드로 복귀";
+                quizBtn.className = "bg-slate-500 hover:bg-slate-600 text-white font-bold px-5 py-2.5 rounded-lg transition shadow-md";
+                instruction.classList.remove("hidden");
+                
+                score = 0;
+                document.getElementById("quiz-score").innerText = "점수: 0점";
+                
+                drawMarkers();
+                nextQuiz();
+            } else {
+                quizCard.classList.add("hidden");
+                quizBtn.innerText = "🎯 퀴즈 모드 켜기";
+                quizBtn.className = "bg-amber-500 hover:bg-amber-600 text-white font-bold px-5 py-2.5 rounded-lg transition shadow-md";
+                instruction.classList.add("hidden");
+                
+                drawMarkers();
+                document.getElementById("empty-state").classList.remove("hidden");
+                document.getElementById("info-state").classList.add("hidden");
+            }
+        }
+
+        function nextQuiz() {
+            document.getElementById("quiz-feedback").classList.add("hidden");
+            const randomIdx = Math.floor(Math.random() * quizzes.length);
+            currentQuiz = quizzes[randomIdx];
+            document.getElementById("quiz-question").innerText = currentQuiz.question;
+        }
+
+        window.onload = initMap;
+    </script>
+</body>
+</html>
